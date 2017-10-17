@@ -4,3 +4,5 @@ This demo leverages OpenStreetMaps data provided by Mapzen to search through ove
 
 You can see a [demo of this here](http://osmsearch.azurewebsites.net/)
 
+## Screen Shot
+![Demo Screen Shot](https://github.com/liamca/geospatial-search-demo/blob/master/osm_search.png)
