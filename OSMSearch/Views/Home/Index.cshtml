@@ -1,0 +1,116 @@
+﻿@{
+    ViewBag.Title = "Home Page";
+}
+
+<script type='text/javascript' src='https://www.bing.com/api/maps/mapcontrol?branch=experimental'></script>
+@*<script type='text/javascript' src='https://www.bing.com/api/maps/mapcontrol?callback=GetMap' async defer></script>*@
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+
+<script src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.10.2.min.js"></script>
+<link rel="stylesheet" href="http://ajax.aspnetcdn.com/ajax/jquery.ui/1.11.4/themes/smoothness/jquery-ui.css">
+<script src="http://ajax.aspnetcdn.com/ajax/jquery.ui/1.11.4/jquery-ui.min.js"></script>
+
+<script type='text/javascript'>
+    var map, BingApiKey;
+
+    $(function () {
+        BingApiKey = '@ViewBag.BingApiKey';
+        if (BingApiKey == '')
+            alert('Please check your web.config to make sure you have set the Bing Maps API Key.');
+        map = new Microsoft.Maps.Map('#myMap', {
+            credentials: BingApiKey,
+            zoom: 5
+        });
+
+        $("#q").autocomplete({
+            source: function (request, response) {
+                $.getJSON("/home/autocomplete",
+                    { term: $('#q').val(), fuzzy: true },
+                    response);
+            },
+            minLength: 2,
+            select: function (event, ui) {
+                currentPage = 1;
+                Search();
+            }
+        });
+
+        $("#q").keypress(function (event) {
+            if (event.keyCode == 13) {
+                currentPage = 1;
+                Search();
+                $("#q").autocomplete('close');
+            }
+        });
+
+        Search();
+    });
+
+    var q = '';
+
+    function Search() {
+
+        q = $("#q").val();
+        $.post('/home/search',
+            {
+                q: q,
+                lat: map.getCenter().latitude,
+                lon: map.getCenter().longitude,
+                zoomLevel: map.getZoom()
+            },
+            function (data) {
+                var searchResultsHTML = ''
+                var pushpins = [];
+                for (var i = 0; i < data.Results.length; i++) {
+                    var pushpin = new Microsoft.Maps.Pushpin(new Microsoft.Maps.Location(parseFloat(data.Results[i].Document.location.Latitude), parseFloat(data.Results[i].Document.location.Longitude)));
+                    pushpins.push(pushpin);
+                }
+                map.layers.clear();
+
+                Microsoft.Maps.loadModule('Microsoft.Maps.Clustering', function () {
+                    var clusterLayer = new Microsoft.Maps.ClusterLayer(pushpins, { gridSize: 100 });
+                    map.layers.insert(clusterLayer);
+                });
+
+                var filterResultsHTML = '';
+                for (var f = 0; f < data.Facets.tags.length; f++) {
+                    var fct = data.Facets.tags[f].Value;
+                    while (fct.indexOf("'") > -1)
+                    {
+                        fct = fct.replace("'", "&apos;");
+                    }
+                    filterResultsHTML += '<a href="javascript:void(0)" onclick=\'AddFacet(\"' + fct + '\")\'>' + data.Facets.tags[f].Value + ' (' + data.Facets.tags[f].Count + ')</a></br>';
+                }
+                $("#tagFilter").html(filterResultsHTML);
+
+            });
+    }
+
+    var q = '';
+    function AddFacet(facet)
+    {
+        // Take the facet the user selected and add to the search and re-do search
+        var currentSearch = $("#q").val();
+        $("#q").val(currentSearch + "+\"" + facet + "\"");
+        Search();
+    }
+</script>
+
+
+
+<div style="padding:20px;">
+    <div class="row">
+        <div class="col-sm-3 search-widget">
+                <form class="form-search">
+                    <input style="float:left;" type="text" id="q" placeholder="Enter Search Terms" class="form-control">
+                    <button type="button" class="btn btn-primary" onclick="Search();">Search</button>
+                </form>
+                <h3>Related Categories</h3>
+                <div id="tagFilter"></div>
+            </div> <!-- end .page-sidebar -->
+        <div class="col-sm-9 page-content">
+            <div id="myMap" style="position:relative;width:100%;height:750px;"></div>
+        </div>
+
+    </div>
+</div>
